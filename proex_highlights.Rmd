@@ -1,0 +1,208 @@
+---
+title: "Estimativas de variação de bolsas PROEX"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+               cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+source("estimativa_cotas_2020_proex.R")
+```
+
+# Metodologia
+
+* Dados usados: base de dados abertos CAPES (planilhas de discentes,
+docentes e programas por ano), GeoCapes(bolsa por programa em 2018), PNUD (idh)
+* Cotas de bolsas calculadas para cada programa conforme anexos I, II
+   , III das portarias 20 e 21 de 2020 da CAPES
+* Número de bolsas estimado aplicando-se os limites de no máximo 10%
+  de redução ou 30% de aumento, sobre o número de bolsas de cada
+  programa em 2018. Esta é a melhor aproximação que podemos fazer,
+  pois a CAPES não disponibilizou o número de bolsas por programa
+  em 2019 ou antes e depois das protarias. 
+* Para programas PROEX deve
+  ser uma estimativa boa, pois estes programas não sofreram cortes de
+  bolsas em 2019. Pequenas diferenças podem ocorrer porque os
+  programas PROEX podem converter duas bolsas de mestrado em uma de
+  doutorado, conforme suas necessidades. Assim, é possível que haja
+  pequenas diferenças entre o número de cotas de bolsas de cada tipo
+  em 2018 e as de fevereiro de 2020. mas acreditamos que stas
+  diferenças sejam pequenas.
+
+# Achados
+
+## O total de bolsas PROEX teve um discreto aumento
+
+```{r total bolsas antes e depois}
+cbind(apply(proex.m2[,c("bolsas.em.2018", "est.bolsas.2020")], 2, sum),
+      apply(proex.d2[,c("bolsas.em.2018", "est.bolsas.2020")], 2, sum))%>%
+    kable(col.names=c("Mestrado", "Doutorado"), caption="N de bolsas em 2018 e estimado para 2020")
+```
+
+## Houve perdas em áreas de avaliação
+
+Apesar do saldo positivo, `r  with(proex.d2, sum(est.bolsas.2020 < bolsas.em.2018)) ` 
+das `r length(unique(proex.d2$NM_AREA_AVALIACAO))` áreas de avaliação tiverma um saldo negativo de bolsas de doutorado.
+Para mestrado, `r  with(proex.m2, sum(est.bolsas.2020 < bolsas.em.2018))` área tiveram saldo negativo.
+Até o momento, todos os programas conceito 6 e 7 haviam sido poupado de cortes. Nossas estimativas mostram que com a nova portaria isso não é mais verdade. Mais importante, os cortes não estão distribuídos igualmente pelas áreas de avaliação.
+
+### Saldo de bolsas
+
+```{r perdas dout por area}
+proex.d2 %>%
+    group_by(NM_AREA_AVALIACAO ) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    arrange(dif.p) %>%
+	kable( caption = "Bolsas de doutorado: número em 2018, estimativa para 2020, diferença absoluta e percentual em relação a 2018")
+
+```
+
+```{r perdas mestr por area}
+proex.m2 %>%
+    group_by(NM_AREA_AVALIACAO ) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    arrange(dif.p) %>%
+	kable( caption = "Bolsas de mestrado: número em 2018, estimativa para 2020, diferença absoluta e percentual em relação a 2018")
+```
+
+
+
+# A região Sul foi a que perdeu mais e a SE a que ganhou mais
+
+### Saldo de bolsas 
+
+```{r dout por regiao}
+proex.d2 %>%
+    group_by(NM_REGIAO) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    kable(caption="Bolsas de doutorado")
+```
+
+```{r mestr por regiao}
+proex.m2 %>%
+    group_by(NM_REGIAO) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    kable(caption="Bolsas de mestrado")
+```
+
+### N de programas que perderam bolsas
+
+Se consideramos % de programas com perdas, a região SE supera o NE, mas está próxima. Sul continua sendo a região mais afetada.
+
+```{r perdas dout por regiao}
+proex.d2 %>%
+    group_by(NM_REGIAO) %>%
+    summarise(Total.programas = n(), Programas.que.perderam = sum(est.bolsas.2020 < bolsas.em.2018),
+              proporcao.perderam = round(100*Programas.que.perderam/Total.programas,1)) %>%
+    arrange(-proporcao.perderam) %>%
+	kable( caption = "Bolsas de doutorado: número de programas que tiveram perdas de bolsas")
+
+```
+
+```{r perdas mestr por regiao}
+proex.m2 %>%
+    group_by(NM_REGIAO) %>%
+    summarise(Total.programas = n(), Programas.que.perderam = sum(est.bolsas.2020 < bolsas.em.2018),
+              proporcao.perderam = round(100*Programas.que.perderam/Total.programas,1)) %>%
+    arrange(-proporcao.perderam) %>%
+	kable( caption = "Bolsas de doutorado: número de programas que tiveram perdas de bolsas")
+```
+
+# As perdas se concentram nos programas que tinham maior número de bolsas
+
+O padrão mais claro que há nos dados é este. Separando os programas em
+três classes de número bolsas de doutorado em múltiplos de 21 (valor
+inicial para programas 7), vemos que a maioria dos programas que
+tinham até 21 bolsas em 2018 ganharam mais bolsas. E que programas que
+tinham mais que 21, e principalmente os que tinham mais que 42 bolsas
+em sua maioria perderam.
+
+
+```{r perdas por faixa de n bolsas d em 2018}
+proex.d2 %>%
+    mutate(diferenca = est.bolsas.2020 - bolsas.em.2018, dif.p = diferenca/bolsas.em.2018,
+           bolsas.2018 = cut(bolsas.em.2018, c(0,21,42,max(bolsas.em.2018)+1))) %>%
+    ggplot(aes(bolsas.2018, dif.p)) +
+    geom_boxplot() +
+    facet_grid(~colegio)
+```
+
+O padrão se repete para bolsas de mestrado, agregadas em classes múltiplas de 14 bolsas:
+
+```{r perdas por faixa de n bolsas m em 2018}
+proex.m2 %>%
+    mutate(diferenca = est.bolsas.2020 - bolsas.em.2018, dif.p = diferenca/bolsas.em.2018,
+           bolsas.2018 = cut(bolsas.em.2018, c(0,14,28,max(bolsas.em.2018)+1))) %>%
+    ggplot(aes(bolsas.2018, dif.p)) +
+    geom_boxplot() +
+    facet_grid(~colegio)
+```
+
+
+# As relações com IDH alto e Média de titulados não são claras
+
+Apesar das portarias usarem estes critérios, o resultado final de saldo de bolsas e de programas
+que perderam e ganharam não mostra um padrão tão claro, pois há perdas em todas as faixs.
+
+Em parte deve-se à baixa variação de IDH das cidade em que há
+programas PROEX. Mas acredito que a principal razão é o padrão da
+seção acima: por causa dos valores iniciais da ordem de 14-20
+combinados com os limites, programas que tinham muitas bolsas sempre
+terão que ter os 10% de perda, mesmo quando "ganham" cotas em relação
+ao valor inicial. Este programas com muitas bolsas são os maiores, que
+também têm mais discentes, docentes e portanto titulados. Apesar do
+maior número de titulados, a maioria teve redução de 10% das bolsas,
+pq tinha muito mais que o valor inicial.
+
+### Doutorado
+```{r saldo dout por faixas}
+proex.d2 %>%
+    group_by(idhm.faixa, tmc.faixa ) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    kable(caption="Bolsas de doutorado: número em 2018, estimativa para 2020, diferença absoluta e percentual em relação a 2018") 
+```
+
+```{r programas dout por faixas}
+proex.d2 %>%
+    group_by(idhm.faixa, tmc.faixa ) %>%
+    summarise(Total.programas = n(), Programas.que.perderam = sum(est.bolsas.2020 < bolsas.em.2018),
+              proporcao.perderam = round(100*Programas.que.perderam/Total.programas,1)) %>%
+	kable( caption = "Bolsas de doutorado: número de programas que tiveram perdas")
+```
+
+### Mestrado
+```{r saldo mestr por faixas}
+proex.m2 %>%
+    group_by(idhm.faixa, tmc.faixa ) %>%
+    summarise(N.18 = sum(bolsas.em.2018), N.20 = sum(est.bolsas.2020),
+              diferenca = N.20-N.18, dif.p = round(100*diferenca/N.18,1)) %>%
+    kable(caption="Bolsas de mestrado: número em 2018, estimativa para 2020, diferença absoluta e percentual em relação a 2018") 
+```
+
+```{r programas mestr por faixas}
+proex.m2 %>%
+    group_by(idhm.faixa, tmc.faixa ) %>%
+    summarise(Total.programas = n(), Programas.que.perderam = sum(est.bolsas.2020 < bolsas.em.2018),
+              proporcao.perderam = round(100*Programas.que.perderam/Total.programas,1)) %>%
+	kable( caption = "Bolsas de mestrado: número de programas que tiveram perdas")
+```
