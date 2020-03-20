@@ -1,0 +1,234 @@
+---
+title: "Para onde aponta o novo modelo de distribuição da CAPES ?"
+date: "`r Sys.Date()`"
+author: "Paulo Inácio Prado, Instituto de Biociências da USP"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+library(janitor)
+source("calculos_portaria.R")
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+## Funcoes acessorias
+F1 <- function(x){
+    y <- summarise(x, N.cursos = n(), N.bolsas.18 = sum(n.bolsas.18, na.rm=TRUE), N.bolsas.cota= sum(cota.portaria, na.rm=TRUE),
+                   dif.bolsas= N.bolsas.cota-N.bolsas.18, difp.bolsas = (100*dif.bolsas/N.bolsas.18))
+    as.data.frame(y)
+}
+F2 <- function(df){
+    x <- adorn_totals(df, "row")
+    x$difp.bolsas = with(x, 100*dif.bolsas/N.bolsas.18)
+    return(x)
+    }
+```
+
+# Apresentação
+
+Em fevereiro a CAPES anunciou novo modelo de distribuição de bolsas, em suas
+PORTARIAS Nº [18](http://cad.capes.gov.br/ato-administrativo-detalhar?idAtoAdmElastic=3282), 
+[20](http://cad.capes.gov.br/ato-administrativo-detalhar?idAtoAdmElastic=3284) e 
+[21](http://cad.capes.gov.br/ato-administrativo-detalhar?idAtoAdmElastic=3302).
+O novo modelo
+define um número de inicial de bolsas para os programas de acordo com
+seu conceito (Anexos I das portarias). Em seguida este número é
+alterado por multiplicadores que dependem de faixas de IDH do
+município do programa (Anexos II) e do número médio de titulados
+do curso (Anexo III).
+
+As portarias originais ainda estabeleciam tetos de perdas e ganhos com
+essas mudanças, para o ano de 2020. A cota de bolsas calculada é
+comparada com o número de bolsas que cada programa tinha em fevereiro
+de 2020. Perdas estavam limitadas a 10%, e ganhos a 10% (Programas com
+conceito até 5) ou até 30% (Programas com conceito 6 ou 7).
+
+A portaria [Portaria nº 34](http://cad.capes.gov.br/ato-administrativo-detalhar?idAtoAdmElastic=3443#anchor), 
+de 9 de Março de 2020 ampliou este limites, informando no [Ofício Circular nº 8/2020-GAB/PR/CAPES](https://sei.capes.gov.br/sei/controlador_externo.php?acao=documento_conferir&codigo_verificador=1166036&codigo_crc=1D307FCF&hash_download=34d21957857202f276ff05208296e4d951e758cdef95a4be2c8d0ce94ed8734799a0b24d07f7b307d7c4644b4ba08b0d78495d91de67c8e27e683767979accfb&visualizacao=1&id_orgao_acesso_externo=0):
+
+> "Consoante orientação central do Ministério da Educação (MEC) e
+> considerando a alta receptividade do modelo de redistribuição de
+> bolsas publicado no final de fevereiro deste ano, foi identificada a
+> conveniência de ampliar a velocidade de sua implantação,
+> privilegiando com maior vigor os cursos mais bem avaliados."
+
+# Objetivo
+
+Considerando que a CAPES aponta para a implantação integral das
+portarias no futuro, e também sua política de acelerar esta
+implntação, avaliamos seu impacto no número de bolsas, comparando com
+o número de bolsas que os programas tinham em 2018.
+
+Usamos a quantidade de bolsas de cada programa em 2018 como base de
+comparação para avaliar o efeito acumulado de todas as medidas de
+congelamento e remanejamento de bolsas desde o início do atual governo
+federal. Este é também o dado mais recente nas bases públicas da CAPES.
+
+
+# Metodologia
+
+* Análise dos programas ativos em 2019
+* Dados dos programas (conceito, n de discentes, m de matriculados, n
+  de docentes, ect) da base de dados abertos da CAPES
+  (https://dadosabertos.capes.gov.br/)
+* Dados de número de bolsas por programa (2015 a 2018) do Sistema GEOCAPES (https://geocapes.capes.gov.br/geocapes/)
+* Dados de IDH dos municípios em 2010 do site do PNUD (https://www.br.undp.org/content/brazil/pt/home/idh0/rankings/idhm-municipios-2010.html)
+* Cálculo do número de bolsas que cada programa receberia de acordo
+  com as Portarias da CAPES, **sem a aplicação dos limites de perdas
+  ou ganhos**, vigentes neste ano.
+
+
+# Variação no número de bolsas em relação a 2018
+
+
+## Totais
+
+```{r diferencas totais}
+## Monta a tabela
+df.total <- data.frame(Curso =c("Mestrado","Doutorado"), rbind(F1(mestrados.15.18.id), F1(doutorados.15.18.id))) %>%
+    F2()
+```
+
+A aplicação integral das portarias levaria a redução de 
+`r  round(df.total$difp.bolsas[3],1)`% das bolsas.
+
+```{r  tabela diferencas totais}
+kable(df.total, digits=1,
+      col.names = c("Curso", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação do número de bolsas de mestrado e doutorado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+## Por colegio
+
+```{r diferencas colegio mestrado e doutorado}
+df.colegio.m <- mestrados.15.18.id %>%
+    group_by(colegio) %>%
+    F1() %>%
+    F2()
+df.colegio.d <- doutorados.15.18.id %>%
+    group_by(colegio) %>%
+    F1() %>%
+    F2()
+```
+
+### Mestrado
+
+```{r  tabela diferencas colegios mestrado}
+kable(df.colegio.m, digits=1,
+      col.names = c("Colégio", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por colégio do número de bolsas de mestrado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+### Doutorado
+
+```{r  tabela diferencas colegios doutorado}
+kable(df.colegio.d, digits=1,
+      col.names = c("Colégio", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por colégio do número de bolsas de doutorado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+## Por conceito do curso
+
+```{r diferencas conceito mestrado e doutorado}
+df.conceito.m <- mestrados.15.18.id %>%
+    group_by(CD_CONCEITO_CURSO) %>%
+    F1() %>%
+    F2()
+df.conceito.d <- doutorados.15.18.id %>%
+    group_by(CD_CONCEITO_CURSO) %>%
+    F1() %>%
+    F2()
+```
+
+### Mestrado
+
+```{r  tabela diferencas conceito mestrado}
+kable(df.conceito.m, digits=1,
+      col.names = c("Conceito do programa", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por conceito do número de bolsas de mestrado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+### Doutorado
+
+```{r  tabela diferencas conceito doutorado}
+kable(df.conceito.d, digits=1,
+      col.names = c("Conceito do programa", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por conceito do número de bolsas de doutorado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+## Por região
+
+```{r diferencas regiao mestrado e doutorado}
+df.regiao.m <- mestrados.15.18.id %>%
+    group_by(NM_REGIAO) %>%
+    F1() %>%
+    arrange(difp.bolsas) %>%
+    F2()
+
+df.regiao.d <- doutorados.15.18.id %>%
+    group_by(NM_REGIAO) %>%
+    F1() %>%
+    arrange(difp.bolsas) %>%
+    F2()
+```
+
+### Mestrado
+
+```{r  tabela diferencas regiao mestrado}
+kable(df.regiao.m, digits=1,
+      col.names = c("Regiao", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por região do Brasil do número de bolsas de mestrado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+### Doutorado
+
+```{r  tabela diferencas regiao doutorado}
+kable(df.regiao.d, digits=1,
+      col.names = c("Regiao", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por região do Brasil do número de bolsas de doutorado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+## Por área de avaliação
+
+```{r diferencas area mestrado e doutorado}
+df.area.m <- mestrados.15.18.id %>%
+    group_by(NM_AREA_AVALIACAO) %>%
+    F1() %>%
+    arrange(difp.bolsas) %>%
+    F2()
+
+df.area.d <- doutorados.15.18.id %>%
+    group_by(NM_AREA_AVALIACAO) %>%
+    F1() %>%
+    arrange(difp.bolsas) %>%
+    F2()
+```
+
+### Mestrado
+
+```{r  tabela diferencas areas mestrado}
+kable(df.area.m, digits=1,
+      col.names = c("Regiao", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por área de avaliação do número de bolsas de mestrado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
+
+### Doutorado
+
+```{r  tabela diferencas areas doutorado}
+kable(df.area.d, digits=1,
+      col.names = c("Regiao", "N de cursos", "N Bolsas em 2018", "N bolsas projetado", "Diferença", "Diferença %"),
+      caption="Comparação por área de avaliação do número de bolsas de doutorado em 2018 e o projetado pela aplicação do novo modelo de distribuição de bolsas da CAPES, sem limites de perda. Também indicadas a variação em número de bolsas e em percentual em relação a 2018. Fontes dos dados: Bases Públicas da CAPES, programas ativos em 2018.")
+```
